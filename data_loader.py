@@ -19,6 +19,8 @@ class DataLoader:
         self.user_encoder = LabelEncoder()
         self.entity_encoder = LabelEncoder()
         self.relation_encoder = LabelEncoder()
+
+        self._encoding()
         
     def _encoding(self):
         self.user_encoder.fit(self.df_rating['userId'])
@@ -30,14 +32,17 @@ class DataLoader:
         self.df_kg['relation'] = self.relation_encoder.transform(self.df_kg['relation'])
 
     def _build_dataset(self):
+        print('Build dataset dataframe ...', end=' ')
         # df_rating update
         df_dataset = pd.DataFrame()
         df_dataset['userId'] = self.user_encoder.transform(self.df_rating['userId'])
-        df_dataset['movieId'] = self.user_encoder.transform(self.df_rating['movieId'])
+        df_dataset['movieId'] = self.entity_encoder.transform(self.df_rating['movieId'])
         df_dataset['label'] = self.df_rating['rating'].apply(lambda x: 0 if x < 4.0 else 1)
-        self.df_dataset = df_dataset
+        print('Done')
+        return df_dataset
         
     def _construct_kg(self):
+        print('Construct knowledge graph ...', end=' ')
         kg = dict()
         for i in range(len(self.df_kg)):
             head = self.df_kg.iloc[i]['head']
@@ -51,12 +56,11 @@ class DataLoader:
                 kg[tail].append((relation, head))
             else:
                 kg[tail] = [(relation, head)]
+        print('Done')
         return kg
         
     def load_data(self):
-        self._encoding()
-        self._build_dataset()
-        return self.df_dataset
+        return self._build_dataset()
 
     def load_kg(self):
         return self._construct_kg()

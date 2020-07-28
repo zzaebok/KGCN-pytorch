@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 import random
 import numpy as np
+import copy
 
 class KGCN(torch.nn.Module):
     def __init__(self, num_user, num_ent, num_rel, kg, args):
@@ -48,20 +49,18 @@ class KGCN(torch.nn.Module):
         '''
         batch_size = u.size()[-1]
         v_u_list = []
-        for b in range(batch_size):
-            m = self._get_receptive(v)
-            print("b and m", b, m)
-            # e_u_dict { 3: [[1,2,3,4,5], None, None]} / entity embedding updated
-            e_u_dict = {x: [self.ent[x] if i == 0 else None for i in range(self.n_iter+1)] for x in m[0]}
+        for i in range(batch_size):
+            m = self._get_receptive(v[i])
+            # e_u_dict { 3: tensor([1,2,3,4,5]), None, None]} / entity embedding updated
+            e_u_dict = {int(x): [self.ent(x) if i == 0 else None for i in range(self.n_iter+1)] for x in m[0]}
             for h in range(1, self.n_iter+1):
-                print("h", h)
                 for e in m[h]:
-                    e_u_neighbor = self._message_passing(u[b], e)
-                    e_u_dict[e][h] = self._aggregate(e_u_neighbor, e_u_dict[e][h-1])
-            v_u = e_u_dict[v][self.n_iter]
+                    e_u_neighbor = self._message_passing(u[i], e)
+                    e_u_dict[int(e)][h] = self._aggregate(e_u_neighbor, e_u_dict[int(e)][h-1])
+            v_u = e_u_dict[int(v[i])][self.n_iter]
             v_u_list.append(v_u)
-        v_u_batched = torch.cat(v_u_list)
-        return torch.dot(self.usr[u], v_u_batched)
+        v_u_batched = torch.stack(v_u_list)
+        return F.sigmoid((self.usr(u) * v_u_batched).sum(dim=1))
     
     def _get_receptive(self, v):
         '''
@@ -71,7 +70,7 @@ class KGCN(torch.nn.Module):
         m = [[] for _ in range(self.n_iter+1)]
         m[self.n_iter].append(v)
         for h in range(self.n_iter-1, -1, -1): # from H-1 to 0
-            m[h] = m[h+1]
+            m[h] = copy.deepcopy(m[h+1])
             for e in m[h+1]:
                 m[h].extend(self._get_neighbors(e))
         # list of list which contains tensor
@@ -88,10 +87,10 @@ class KGCN(torch.nn.Module):
         neighbors = self._get_neighbors(e)
         relations = torch.LongTensor(self.adj_rel[e])
         weights = self._get_weight(u, relations)
-        return sum([weight * self.ent[entity] for entity, weight in zip(neighbors, weights)])
+        return sum([weight * self.ent(entity) for entity, weight in zip(neighbors, weights)])
     
     def _get_weight(self, u, relations):
-        pi_u_r = [torch.dot(self.usr[u], self.rel[r]) for r in relations]
+        pi_u_r = torch.Tensor([torch.dot(self.usr(u), self.rel(r)) for r in relations])
         pi_u_r = F.softmax(pi_u_r)
         return pi_u_r
     
@@ -106,4 +105,4 @@ class KGCN(torch.nn.Module):
             v_u = self.agg_weight(torch.cat((v, v_u)))
         else:
             v_u = self.agg_weight(v_u)
-        return torch.nn.Relu(v_u)
+        return F.relu(v_u)
