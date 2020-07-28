@@ -1,3 +1,9 @@
+import sys
+import torch
+import torch.nn.functional as F
+import random
+import numpy as np
+
 class KGCN(torch.nn.Module):
     def __init__(self, num_user, num_ent, num_rel, kg, args):
         super(KGCN, self).__init__()
@@ -40,34 +46,35 @@ class KGCN(torch.nn.Module):
         u, v as indices 'batch_size' tensor
         vector operation should be executed with embedding ex) self.usr[u]
         '''
-        batch_size = v.size()[-1]
-        m = self._get_receptive(v)
+        batch_size = u.size()[-1]
         v_u_list = []
         for b in range(batch_size):
-            e_u_dict = {x: [self.ent[x] if i == 0 else None for i in range(self.n_iter+1)] for x in m[b][0]}
-            # e_u_dict { 3: [[1,2,3,4,5], None, None]}
+            m = self._get_receptive(v)
+            print("b and m", b, m)
+            # e_u_dict { 3: [[1,2,3,4,5], None, None]} / entity embedding updated
+            e_u_dict = {x: [self.ent[x] if i == 0 else None for i in range(self.n_iter+1)] for x in m[0]}
             for h in range(1, self.n_iter+1):
-                print(h)
-                for e in m[b][h]:
+                print("h", h)
+                for e in m[h]:
                     e_u_neighbor = self._message_passing(u[b], e)
                     e_u_dict[e][h] = self._aggregate(e_u_neighbor, e_u_dict[e][h-1])
-            v_u = e_u_dict[v[b]][self.n_iter]
+            v_u = e_u_dict[v][self.n_iter]
             v_u_list.append(v_u)
-        return torch.dot(self.usr[u], torch.Tensor(v_u_list))
+        v_u_batched = torch.cat(v_u_list)
+        return torch.dot(self.usr[u], v_u_batched)
     
     def _get_receptive(self, v):
         '''
         get receptive field inwardly
         '''
-        batch_size = v.size()[-1]
         # batch_size x H x [](?)
-        m = [[[] for _ in range(self.n_iter+1)] for _ in range(batch_size)]
-        for b in range(batch_size):
-            m[b][self.n_iter].append(v[b])
-            for h in range(self.n_iter-1, -1, -1): # from H-1 to 0
-                m[b][h] = m[b][h+1]
-                for e in m[b][h+1]:
-                    m[b][h].extend(self._get_neighbors(e))
+        m = [[] for _ in range(self.n_iter+1)]
+        m[self.n_iter].append(v)
+        for h in range(self.n_iter-1, -1, -1): # from H-1 to 0
+            m[h] = m[h+1]
+            for e in m[h+1]:
+                m[h].extend(self._get_neighbors(e))
+        # list of list which contains tensor
         return m
     
     def _get_neighbors(self, e):
