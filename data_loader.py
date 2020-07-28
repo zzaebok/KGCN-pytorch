@@ -2,14 +2,34 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
+import random
+
 
 class DataLoader:
-    def __init__(self):
-        df_item2id = pd.read_csv('data/movie/item_index2entity_id.txt', sep='\t', header=None, names=['item','id'])
-        df_kg = pd.read_csv('data/movie/kg.txt', sep='\t', header=None, names=['head','relation','tail'])
-        df_rating = pd.read_csv('data/movie/ratings.csv')
+    def __init__(self, data):
+        self.cfg = {
+            'movie': {
+                'item2id_path': 'data/movie/item_index2entity_id.txt',
+                'kg_path': 'data/movie/kg.txt',
+                'rating_path': 'data/movie/ratings.csv',
+                'rating_sep': ',',
+                'threshold': 4.0
+            },
+            'music': {
+                'item2id_path': 'data/music/item_index2entity_id.txt',
+                'kg_path': 'data/music/kg.txt',
+                'rating_path': 'data/music/user_artists.dat',
+                'rating_sep': '\t',
+                'threshold': 0.0
+            }
+        }
+        self.data = data
         
-        df_rating = df_rating[df_rating['movieId'].isin(df_item2id['item'])]
+        df_item2id = pd.read_csv(self.cfg[data]['item2id_path'], sep='\t', header=None, names=['item','id'])
+        df_kg = pd.read_csv(self.cfg[data]['kg_path'], sep='\t', header=None, names=['head','relation','tail'])
+        df_rating = pd.read_csv(self.cfg[data]['rating_path'], sep=self.cfg[data]['rating_sep'], names=['userID', 'itemID', 'rating'], skiprows=1)
+
+        df_rating = df_rating[df_rating['itemID'].isin(df_item2id['item'])]
         df_rating.reset_index(inplace=True)
         
         self.df_item2id = df_item2id
@@ -23,8 +43,8 @@ class DataLoader:
         self._encoding()
         
     def _encoding(self):
-        self.user_encoder.fit(self.df_rating['userId'])
-        self.entity_encoder.fit(pd.concat([self.df_rating['movieId'], self.df_kg['head'], self.df_kg['tail']]))
+        self.user_encoder.fit(self.df_rating['userID'])
+        self.entity_encoder.fit(pd.concat([self.df_rating['itemID'], self.df_kg['head'], self.df_kg['tail']]))
         self.relation_encoder.fit(self.df_kg['relation'])
         
         self.df_kg['head'] = self.entity_encoder.transform(self.df_kg['head'])
@@ -35,11 +55,32 @@ class DataLoader:
         print('Build dataset dataframe ...', end=' ')
         # df_rating update
         df_dataset = pd.DataFrame()
-        df_dataset['userId'] = self.user_encoder.transform(self.df_rating['userId'])
-        df_dataset['movieId'] = self.entity_encoder.transform(self.df_rating['movieId'])
-        df_dataset['label'] = self.df_rating['rating'].apply(lambda x: 0 if x < 4.0 else 1)
+        df_dataset['userID'] = self.user_encoder.transform(self.df_rating['userID'])
+        df_dataset['itemID'] = self.entity_encoder.transform(self.df_rating['itemID'])
+        df_dataset['label'] = self.df_rating['rating'].apply(lambda x: 0 if x < self.cfg[self.data]['threshold'] else 1)
+        
+        # negative sampling
+        df_dataset = df_dataset[df_dataset['label']==1]
+        full_item_set = set(range(len(self.entity_encoder.classes_)))
+        user_list = []
+        item_list = []
+        label_list = []
+        for user, group in df_dataset.groupby(['userID']):
+            item_set = set(group['itemID'])
+            negative_set = full_item_set - item_set
+            negative_sampled = random.sample(negative_set, len(item_set))
+            user_list.extend([user] * len(negative_sampled))
+            item_list.extend(negative_sampled)
+            label_list.extend([0] * len(negative_sampled))
+        negative = pd.DataFrame({'userID': user_list, 'itemID': item_list, 'label': label_list})
+        df_dataset = pd.concat([df_dataset, negative])
+            
+        # shuffling
+        df_dataset = df_dataset.sample(frac=1, replace=False)
+        df_dataset.reset_index(inplace=True)
         print('Done')
         return df_dataset
+        
         
     def _construct_kg(self):
         print('Construct knowledge graph ...', end=' ')

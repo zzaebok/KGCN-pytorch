@@ -60,7 +60,7 @@ class KGCN(torch.nn.Module):
             v_u = e_u_dict[int(v[i])][self.n_iter]
             v_u_list.append(v_u)
         v_u_batched = torch.stack(v_u_list)
-        return F.sigmoid((self.usr(u) * v_u_batched).sum(dim=1))
+        return torch.sigmoid((self.usr(u) * v_u_batched).sum(dim=1))
     
     def _get_receptive(self, v):
         '''
@@ -91,7 +91,7 @@ class KGCN(torch.nn.Module):
     
     def _get_weight(self, u, relations):
         pi_u_r = torch.Tensor([torch.dot(self.usr(u), self.rel(r)) for r in relations])
-        pi_u_r = F.softmax(pi_u_r)
+        pi_u_r = F.softmax(pi_u_r, dim=0)
         return pi_u_r
     
     def _aggregate(self, v, v_u):
