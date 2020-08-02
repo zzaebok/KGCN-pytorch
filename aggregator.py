@@ -11,10 +11,14 @@ class Aggregator(torch.nn.Module):
         if aggregator == 'concat':
             self.weights = torch.nn.Linear(2 * dim, dim, bias=True)
         else:
-            self.weights = torch.nn.Linear(dim, dim, bias=True)        
+            self.weights = torch.nn.Linear(dim, dim, bias=True)
+        self.aggregator = aggregator
         
     def forward(self, self_vectors, neighbor_vectors, neighbor_relations, user_embeddings, act):
-        neighbors_agg = self._mix_neighbor_vectors(neighbor_vectors, neighbor_relations, user_mebeddings)
+        batch_size = user_embeddings.size(0)
+        if batch_size != self.batch_size:
+            self.batch_size = batch_size
+        neighbors_agg = self._mix_neighbor_vectors(neighbor_vectors, neighbor_relations, user_embeddings)
         
         if self.aggregator == 'sum':
             output = (self_vectors + neighbors_agg).view((-1, self.dim))
@@ -41,6 +45,6 @@ class Aggregator(torch.nn.Module):
         user_relation_scores_normalized = user_relation_scores_normalized.unsqueeze(dim = -1)
         
         # [batch_size, -1, n_neighbor, 1] * [batch_size, -1, n_neighbor, dim] -> [batch_size, -1, dim]
-        neighbors_aggregated = (user_relation_score_normalized * neighbor_vectors).sum(dim = 2)
+        neighbors_aggregated = (user_relation_scores_normalized * neighbor_vectors).sum(dim = 2)
         
         return neighbors_aggregated

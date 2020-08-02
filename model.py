@@ -30,8 +30,8 @@ class KGCN(torch.nn.Module):
         Generate adjacency matrix for entities and relations
         Only cares about fixed number of samples
         '''
-        self.adj_ent = np.empty((self.num_ent, self.n_neighbor))
-        self.adj_rel = np.empty((self.num_ent, self.n_neighbor))
+        self.adj_ent = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
+        self.adj_rel = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
         
         for e in self.kg:
             if len(self.kg[e]) >= self.n_neighbor:
@@ -39,27 +39,30 @@ class KGCN(torch.nn.Module):
             else:
                 neighbors = random.choices(self.kg[e], k=self.n_neighbor)
                 
-            self.adj_ent[e] = [ent for _, ent in neighbors]
-            self.adj_rel[e] = [rel for rel, _ in neighbors]
+            self.adj_ent[e] = torch.LongTensor([ent for _, ent in neighbors])
+            self.adj_rel[e] = torch.LongTensor([rel for rel, _ in neighbors])
         
     def forward(self, u, v):
         '''
         input: u, v are batch sized indices for users and items
-        u: [1, batch_size]
-        v: [1, batch_size]
+        u: [batch_size]
+        v: [batch_size]
         '''
+        batch_size = u.size(0)
+        if batch_size != self.batch_size:
+            self.batch_size = batch_size
         # change to [batch_size, 1]
         u = u.view((-1, 1))
         v = v.view((-1, 1))
         
         # [batch_size, dim]
         user_embeddings = self.usr(u).squeeze(dim = 1)
-        print('user_embeddings shape: ', user_embeddings.shape)
+        #print('user_embeddings shape: ', user_embeddings.shape)
         
         entities, relations = self._get_neighbors(v)
         
         item_embeddings = self._aggregate(user_embeddings, entities, relations)
-        print('item_embeddings shape: ', item_embeddings.shape)
+        #print('item_embeddings shape: ', item_embeddings.shape)
         
         scores = (user_embeddings * item_embeddings).sum(dim = 1)
             
@@ -74,8 +77,8 @@ class KGCN(torch.nn.Module):
         relations = []
         
         for h in range(self.n_iter):
-            neighbor_entities = torch.LongTensor(self.adj_ent[entities[h]]).view((self.batch_size, -1))
-            neighbor_relations = torch.LongTensor(self.adj_ent[entities[h]]).view((self.batch_size, -1))
+            neighbor_entities = torch.LongTensor(self.adj_ent[entities[h]]).view((self.batch_size, -1)).to('cuda')
+            neighbor_relations = torch.LongTensor(self.adj_rel[entities[h]]).view((self.batch_size, -1)).to('cuda')
             entities.append(neighbor_entities)
             relations.append(neighbor_relations)
             
@@ -91,9 +94,9 @@ class KGCN(torch.nn.Module):
         
         for i in range(self.n_iter):
             if i == self.n_iter - 1:
-                act = torch.nn.functional.tanh
+                act = torch.tanh
             else:
-                act = torch.nn.functional.sigmoid
+                act = torch.sigmoid
             
             entity_vectors_next_iter = []
             for hop in range(self.n_iter - i):
@@ -101,7 +104,8 @@ class KGCN(torch.nn.Module):
                     self_vectors=entity_vectors[hop],
                     neighbor_vectors=entity_vectors[hop + 1].view((self.batch_size, -1, self.n_neighbor, self.dim)),
                     neighbor_relations=relation_vectors[hop].view((self.batch_size, -1, self.n_neighbor, self.dim)),
-                    user_embeddings=user_embeddings)
+                    user_embeddings=user_embeddings,
+                    act=act)
                 entity_vectors_next_iter.append(vector)
             entity_vectors = entity_vectors_next_iter
         
