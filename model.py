@@ -7,7 +7,7 @@ import copy
 from aggregator import Aggregator
 
 class KGCN(torch.nn.Module):
-    def __init__(self, num_user, num_ent, num_rel, kg, args):
+    def __init__(self, num_user, num_ent, num_rel, kg, args, device):
         super(KGCN, self).__init__()
         self.num_user = num_user
         self.num_ent = num_ent
@@ -17,6 +17,7 @@ class KGCN(torch.nn.Module):
         self.dim = args.dim
         self.n_neighbor = args.neighbor_sample_size
         self.kg = kg
+        self.device = device
         self.aggregator = Aggregator(self.batch_size, self.dim, args.aggregator)
         
         self._gen_adj()
@@ -30,8 +31,8 @@ class KGCN(torch.nn.Module):
         Generate adjacency matrix for entities and relations
         Only cares about fixed number of samples
         '''
-        self.adj_ent = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
-        self.adj_rel = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
+        self.adj_ent = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
+        self.adj_rel = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
         
         for e in self.kg:
             if len(self.kg[e]) >= self.n_neighbor:
@@ -57,12 +58,10 @@ class KGCN(torch.nn.Module):
         
         # [batch_size, dim]
         user_embeddings = self.usr(u).squeeze(dim = 1)
-        #print('user_embeddings shape: ', user_embeddings.shape)
         
         entities, relations = self._get_neighbors(v)
         
         item_embeddings = self._aggregate(user_embeddings, entities, relations)
-        #print('item_embeddings shape: ', item_embeddings.shape)
         
         scores = (user_embeddings * item_embeddings).sum(dim = 1)
             
@@ -77,8 +76,8 @@ class KGCN(torch.nn.Module):
         relations = []
         
         for h in range(self.n_iter):
-            neighbor_entities = torch.LongTensor(self.adj_ent[entities[h]]).view((self.batch_size, -1)).to('cuda')
-            neighbor_relations = torch.LongTensor(self.adj_rel[entities[h]]).view((self.batch_size, -1)).to('cuda')
+            neighbor_entities = torch.LongTensor(self.adj_ent[entities[h]]).view((self.batch_size, -1)).to(self.device)
+            neighbor_relations = torch.LongTensor(self.adj_rel[entities[h]]).view((self.batch_size, -1)).to(self.device)
             entities.append(neighbor_entities)
             relations.append(neighbor_relations)
             

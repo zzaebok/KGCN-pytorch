@@ -30,7 +30,7 @@ class DataLoader:
         df_rating = pd.read_csv(self.cfg[data]['rating_path'], sep=self.cfg[data]['rating_sep'], names=['userID', 'itemID', 'rating'], skiprows=1)
 
         df_rating = df_rating[df_rating['itemID'].isin(df_item2id['item'])]
-        df_rating.reset_index(inplace=True)
+        df_rating.reset_index(inplace=True, drop=True)
         
         self.df_item2id = df_item2id
         self.df_kg = df_kg
@@ -74,10 +74,9 @@ class DataLoader:
             label_list.extend([0] * len(negative_sampled))
         negative = pd.DataFrame({'userID': user_list, 'itemID': item_list, 'label': label_list})
         df_dataset = pd.concat([df_dataset, negative])
-            
-        # shuffling
-        df_dataset = df_dataset.sample(frac=1, replace=False)
-        df_dataset.reset_index(inplace=True)
+        
+        df_dataset = df_dataset.sample(frac=1, replace=False, random_state=999)
+        df_dataset.reset_index(inplace=True, drop=True)
         print('Done')
         return df_dataset
         
@@ -100,7 +99,7 @@ class DataLoader:
         print('Done')
         return kg
         
-    def load_data(self):
+    def load_dataset(self):
         return self._build_dataset()
 
     def load_kg(self):
