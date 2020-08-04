@@ -31,8 +31,8 @@ class KGCN(torch.nn.Module):
         Generate adjacency matrix for entities and relations
         Only cares about fixed number of samples
         '''
-        self.adj_ent = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
-        self.adj_rel = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
+        self.adj_ent = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
+        self.adj_rel = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
         
         for e in self.kg:
             if len(self.kg[e]) >= self.n_neighbor:
@@ -85,8 +85,7 @@ class KGCN(torch.nn.Module):
     
     def _aggregate(self, user_embeddings, entities, relations):
         '''
-        Return v^u vector after aggregate v and v^u (sampled)
-        Equation 4,5,6 in the paper
+        Make item embeddings by aggregating neighbor vectors
         '''
         entity_vectors = [self.ent(entity) for entity in entities]
         relation_vectors = [self.rel(relation) for relation in relations]
