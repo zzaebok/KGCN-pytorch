@@ -21,18 +21,23 @@ class KGCN(torch.nn.Module):
         self.aggregator = Aggregator(self.batch_size, self.dim, args.aggregator)
         
         self._gen_adj()
-            
-        self.usr = torch.nn.Embedding(num_user, args.dim)
+
+        self.usr = torch.nn.Embedding(num_user, args.dim)  # Generate num_user embeddings in args.dim dimension
         self.ent = torch.nn.Embedding(num_ent, args.dim)
         self.rel = torch.nn.Embedding(num_rel, args.dim)
         
     def _gen_adj(self):
         '''
-        Generate adjacency matrix for entities and relations
+        Generate adjacency entities and their corresponding relations.
+        Specifically, for a given entity, this can produce a fixed number of its neighboring entities and connected relations.
         Only cares about fixed number of samples
         '''
-        self.adj_ent = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
-        self.adj_rel = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
+        # DEBUGGING BEGIN
+        # self.adj_ent = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
+        # self.adj_rel = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
+        self.adj_ent = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
+        self.adj_rel = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
+        # DEBUGGING END
         
         for e in self.kg:
             if len(self.kg[e]) >= self.n_neighbor:
@@ -52,13 +57,15 @@ class KGCN(torch.nn.Module):
         batch_size = u.size(0)
         if batch_size != self.batch_size:
             self.batch_size = batch_size
-        # change to [batch_size, 1]
-        u = u.view((-1, 1))
+        
+        # [batch_size] -> [batch_size, 1]
+        u = u.view((-1, 1))  # the size -1 is inferred from other dimensions
         v = v.view((-1, 1))
         
-        # [batch_size, dim]
+        # [batch_size, 1, dim] -> [batch_size, dim]
         user_embeddings = self.usr(u).squeeze(dim = 1)
         
+        # todo 
         entities, relations = self._get_neighbors(v)
         
         item_embeddings = self._aggregate(user_embeddings, entities, relations)
@@ -87,8 +94,19 @@ class KGCN(torch.nn.Module):
         '''
         Make item embeddings by aggregating neighbor vectors
         '''
-        entity_vectors = [self.ent(entity) for entity in entities]
-        relation_vectors = [self.rel(relation) for relation in relations]
+        # DEBUGGING BEGIN
+        # entity_vectors = [self.ent(entity) for entity in entities]
+        # relation_vectors = [self.rel(relation) for relation in relations]
+        entity_vectors = []
+        for entity in entities:  # entities contains a given entity and some other entities that are neighbors of the given one.
+            ev = self.ent(entity)
+            entity_vectors.append(ev)
+        relation_vectors = []
+        for relation in relations:
+            rv = self.rel(relation)  # 默认配置下，由于我只有三种关系，所以rel embedding是3x16维度的，relation作为检索变量不应当有非0，1，2的值出现
+            # 目前就是 relation 中出现超过2的值了，找到这里的 bug 所在
+            relation_vectors.append(rv)
+        # DEGUGGING END
         
         for i in range(self.n_iter):
             if i == self.n_iter - 1:

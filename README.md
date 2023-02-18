@@ -53,3 +53,16 @@ It contains
 - how to construct Datset
 - how to construct Data loader
 - how to train network
+
+## Debugging
+
+- [x] model.py > _aggregate() > relations > 存在 relation 的 tensor 分量有离群值
+- [x] 调查 PyTorch torch.nn.Embedding
+- [x] .view 方法是什么
+- [x] 再次确认数据预处理的正确性：绝对正确，为了保证更加符合数据，甚至直接把 i2e 事先运行完毕
+- [x] 研究 sklearn 里的 label encoder：https://scikit-learn.org/stable/modules/preprocessing_targets.html#preprocessing-targets
+- [x] kg 是否被正确地构建_construct_kg
+- [x] gen_adj 是否生成正确的邻接列表
+- [ ] forward 中的 gen_neighbor 是否正确生成
+- [ ] _aggregate 的后半部分再看一下理解以下
+- [ ] 给 model.py 重新注释

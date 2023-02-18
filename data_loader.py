@@ -1,13 +1,15 @@
+import random
+
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-import random
 
 
 class DataLoader:
     '''
-    Data Loader class which makes dataset for training / knowledge graph dictionary
+    Build user-item ratings dataset & knowledge graph.
+    Firstly, it initially gets the encoders of objects (entities and relations) through __init__ and _encoding;
+    Then, it build the dataset (using _build_dataset) & construct the knowledge graph (using _construct_kg).
     '''
     def __init__(self, data):
         self.cfg = {
@@ -30,10 +32,10 @@ class DataLoader:
                 'kg_path': 'data/product/kg.txt',
                 'rating_path': 'data/product/ratings.csv',
                 'rating_sep': '\t',
-                'threshold': 0.0
+                'threshold': 3.0
             }
         }
-        self.data = data
+        self.data = data  # Name of the dataset
         
         df_item2id = pd.read_csv(self.cfg[data]['item2id_path'], sep='\t', header=None, names=['item','id'])
         df_kg = pd.read_csv(self.cfg[data]['kg_path'], sep='\t', header=None, names=['head','relation','tail'])
@@ -55,7 +57,7 @@ class DataLoader:
         
     def _encoding(self):
         '''
-        Fit each label encoder and encode knowledge graph
+        Fit each label encoder and encode knowledge graph using scikit-learn LebelEncoder
         '''
         self.user_encoder.fit(self.df_rating['userID'])
         # df_item2id['id'] and df_kg[['head', 'tail']] represents new entity ID
@@ -105,7 +107,6 @@ class DataLoader:
         print('Done')
         return df_dataset
         
-        
     def _construct_kg(self):
         '''
         Construct knowledge graph
@@ -122,13 +123,15 @@ class DataLoader:
                 kg[head].append((relation, tail))
             else:
                 kg[head] = [(relation, tail)]
-            if tail in kg:
+            if tail in kg:  # ! ATTENTION: KG is directed graph. Tail element should be appended with (relation^{-1}, head), which can be done during the preprocessing.
                 kg[tail].append((relation, head))
             else:
                 kg[tail] = [(relation, head)]
         print('Done')
         return kg
         
+    # ─── Dataloader Interface ─────────────────────────────────────────────
+
     def load_dataset(self):
         return self._build_dataset()
 
