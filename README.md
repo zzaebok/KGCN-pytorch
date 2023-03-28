@@ -1,10 +1,14 @@
-# KGCN-pytorch
+# KGCN-pytorch-updated
 
-This is the Pytorch implementation of [KGCN](https://dl.acm.org/citation.cfm?id=3313417) ([arXiv](https://arxiv.org/abs/1904.12575)):
+This is an updated PyTorch implementation of the KGCN model, building upon two previous works: [TensorFlow KGCN](https://github.com/hwwang55/KGCN) (Original) and [PyTorch KGCN](https://github.com/zzaebok/KGCN-pytorch).
+
+Reference:
 
 > Knowledge Graph Convolutional Networks for Recommender Systems  
 Hongwei Wang, Miao Zhao, Xing Xie, Wenjie Li, Minyi Guo.  
-In Proceedings of The 2019 Web Conference (WWW 2019)
+In Proceedings of The 2019 Web Conference (WWW 2019)  
+https://dl.acm.org/citation.cfm?id=3313417  
+https://arxiv.org/abs/1904.12575
 
 ## Dataset
 
