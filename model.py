@@ -18,7 +18,7 @@ class KGCN(torch.nn.Module):
         self.n_neighbor = args.neighbor_sample_size
         self.kg = kg
         self.device = device
-        self.aggregator = Aggregator(self.batch_size, self.dim, args.aggregator)
+        self.aggregator = Aggregator(self.batch_size, self.dim, args.aggregator, args.mixer)
         
         self._gen_adj()
 

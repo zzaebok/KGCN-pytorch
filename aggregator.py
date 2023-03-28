@@ -4,11 +4,11 @@ import torch.nn.functional as F
 
 class Aggregator(torch.nn.Module):
     '''
-    Aggregator class
-    Mode in ['sum', 'concat', 'neighbor']
+    Include 3 aggregators: ['sum', 'concat', 'neighbor'],
+    and 2 mixers: ['attention', 'transe']
     '''
     
-    def __init__(self, batch_size, dim, aggregator):
+    def __init__(self, batch_size, dim, aggregator, mixer):
         super(Aggregator, self).__init__()
         self.batch_size = batch_size
         self.dim = dim
@@ -17,20 +17,23 @@ class Aggregator(torch.nn.Module):
         else:
             self.weights = torch.nn.Linear(dim, dim, bias=True)
         self.aggregator = aggregator
+        self.mixer = mixer
         
     def forward(self, self_vectors, neighbor_vectors, neighbor_relations, user_embeddings, act):
         batch_size = user_embeddings.size(0)
         if batch_size != self.batch_size:
             self.batch_size = batch_size
-        neighbors_agg = self._mix_neighbor_vectors(neighbor_vectors, neighbor_relations, user_embeddings)
-        
+
+        if self.mixer == 'attention':
+            neighbors_agg = self._mix_neighbor_vectors(neighbor_vectors, neighbor_relations, user_embeddings)
+        else:
+            neighbors_agg = self._mix_neighbor_vectors_TransE(neighbor_vectors, neighbor_relations)
+
         if self.aggregator == 'sum':
-            output = (self_vectors + neighbors_agg).view((-1, self.dim))
-            
+            output = (self_vectors + neighbors_agg).view((-1, self.dim))  
         elif self.aggregator == 'concat':
             output = torch.cat((self_vectors, neighbors_agg), dim=-1)
             output = output.view((-1, 2 * self.dim))
-            
         else:
             output = neighbors_agg.view((-1, self.dim))
             
@@ -55,3 +58,10 @@ class Aggregator(torch.nn.Module):
         neighbors_aggregated = (user_relation_scores_normalized * neighbor_vectors).sum(dim = 2)
         
         return neighbors_aggregated
+    
+    def _mix_neighbor_vectors_TransE(self, neighbor_vectors, neighbor_relations):
+        '''
+        This also aims to aggregate neighbor vectors.
+        But this func uses TransE assumption, h = t - r.
+        '''
+        return (neighbor_vectors - neighbor_relations).squeeze().mean(1,True)
