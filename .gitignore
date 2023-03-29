@@ -133,3 +133,6 @@ dmypy.json
 
 # Serialized Data from pickle
 .pkl
+
+# Too large data
+data/movie/rating.csv

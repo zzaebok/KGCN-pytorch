@@ -74,7 +74,7 @@ class DataLoader:
         Build dataset for training (rating data)
         It contains negative sampling process
         '''
-        print('Build dataset dataframe ...', end=' ')
+        print('[Info] Build dataset dataframe ...', end=' ')
         # df_rating update
         df_dataset = pd.DataFrame()
         df_dataset['userID'] = self.user_encoder.transform(self.df_rating['userID'])
@@ -113,7 +113,7 @@ class DataLoader:
         Knowledge graph is dictionary form
         'head': [(relation, tail), ...]
         '''
-        print('Construct knowledge graph ...', end=' ')
+        print('[Info] Construct knowledge graph ...', end=' ')
         kg = dict()
         for i in range(len(self.df_kg)):
             head = self.df_kg.iloc[i]['head']

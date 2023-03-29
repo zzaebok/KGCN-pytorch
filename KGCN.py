@@ -51,6 +51,7 @@ def prepare_arguments(arguments=None):
 def experiment(arguments=None):
     """
     Conduct an experiment by arguments passing from function call or from CLI
+    :return: loss_list, test_loss_list, auc_score_list
     """
     # Initialization
     args = prepare_arguments(arguments)
