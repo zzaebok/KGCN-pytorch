@@ -101,7 +101,7 @@ def experiment(arguments=None):
             running_loss += loss.item()
         
         # Print train loss
-        print('[Epoch {}]train_loss: '.format(epoch+1), running_loss / len(train_loader))
+        print(f'[Epoch {epoch+1:>3}] train_loss: {running_loss / len(train_loader):2.6f} ', end='')
         loss_list.append(running_loss / len(train_loader))
             
         # Evaluation
@@ -113,7 +113,7 @@ def experiment(arguments=None):
                 outputs = net(user_ids, item_ids)
                 test_loss += criterion(outputs, labels).item()
                 total_roc += roc_auc_score(labels.cpu().detach().numpy(), outputs.cpu().detach().numpy())
-            print('[Epoch {}]test_loss: '.format(epoch+1), test_loss / len(test_loader))
+            print(f'test_loss: {test_loss / len(test_loader):2.6f}')
             test_loss_list.append(test_loss / len(test_loader))
             auc_score_list.append(total_roc / len(test_loader))
     

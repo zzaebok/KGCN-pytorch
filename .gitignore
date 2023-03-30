@@ -135,4 +135,4 @@ dmypy.json
 .pkl
 
 # Too large data
-data/movie/rating.csv
+data/movie/ratings.csv
