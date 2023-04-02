@@ -30,16 +30,17 @@ class KGCN(torch.nn.Module):
         '''
         Generate adjacency entities and their corresponding relations.
         Specifically, for a given entity, this can produce a fixed number of its neighboring entities and connected relations.
-        Only cares about fixed number of samples
+        Only cares about fixed number of samples, self.n_neighbor.
         '''
-        # DEBUGGING BEGIN
-        # self.adj_ent = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
-        # self.adj_rel = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
+
+        # torch.empty can play the same role as torch.zeros but sometimes it may cause IndexError
+        # Suggestion: Do not change it.
         self.adj_ent = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
         self.adj_rel = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
-        # DEBUGGING END
         
         for e in self.kg:
+
+            # These two conditions assure a fixed number (i.e. self.n_neighbor) of sampling
             if len(self.kg[e]) >= self.n_neighbor:
                 neighbors = random.sample(self.kg[e], self.n_neighbor)
             else:
@@ -65,7 +66,6 @@ class KGCN(torch.nn.Module):
         # [batch_size, 1, dim] -> [batch_size, dim]
         user_embeddings = self.usr(u).squeeze(dim = 1)
         
-        # todo 
         entities, relations = self._get_neighbors(v)
         
         item_embeddings = self._aggregate(user_embeddings, entities, relations)
@@ -94,19 +94,8 @@ class KGCN(torch.nn.Module):
         '''
         Make item embeddings by aggregating neighbor vectors
         '''
-        # DEBUGGING BEGIN
-        # entity_vectors = [self.ent(entity) for entity in entities]
-        # relation_vectors = [self.rel(relation) for relation in relations]
-        entity_vectors = []
-        for entity in entities:  # entities contains a given entity and some other entities that are neighbors of the given one.
-            ev = self.ent(entity)
-            entity_vectors.append(ev)
-        relation_vectors = []
-        for relation in relations:
-            rv = self.rel(relation)  # 默认配置下，由于我只有三种关系，所以rel embedding是3x16维度的，relation作为检索变量不应当有非0，1，2的值出现
-            # 目前就是 relation 中出现超过2的值了，找到这里的 bug 所在
-            relation_vectors.append(rv)
-        # DEGUGGING END
+        entity_vectors = [self.ent(entity) for entity in entities]
+        relation_vectors = [self.rel(relation) for relation in relations]
         
         for i in range(self.n_iter):
             if i == self.n_iter - 1:
