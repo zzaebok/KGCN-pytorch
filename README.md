@@ -5,7 +5,6 @@ This is the Pytorch implementation of [KGCN](https://dl.acm.org/citation.cfm?id=
 > Knowledge Graph Convolutional Networks for Recommender Systems  
 Hongwei Wang, Miao Zhao, Xing Xie, Wenjie Li, Minyi Guo.  
 In Proceedings of The 2019 Web Conference (WWW 2019)
-
 ## Dataset
 
 - ### Movie
@@ -22,6 +21,10 @@ In Proceedings of The 2019 Web Conference (WWW 2019)
 - ### Music
 
     Nothing to do
+
+- ### Product
+
+    This dataset is built upon the Rec-Tmall dataset. Check [./data/product/preprocessing.ipynb](./data/product/preprocessing.ipynb) for more information.
 
 - ### Other dataset
 
@@ -47,9 +50,15 @@ In Proceedings of The 2019 Web Conference (WWW 2019)
 
 ## Running the code
 
-Look at the `KGCN.ipynb`.
+For showing result under one specific hyper parameter setting, use `KGCN.ipynb` or `KGCN.py`.
 
-It contains
+For batch experiments, use `batch_experiments.ipynb`.
+
+p.s. 
+
+`KGCN.ipynb` and `KGCN.py` have the same functionality, but the latter is modularized for easy debugging and reuse.
+
+`KGCN.ipynb` contains
 - how to construct Datset
 - how to construct Data loader
 - how to train network

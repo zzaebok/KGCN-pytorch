@@ -18,23 +18,29 @@ class KGCN(torch.nn.Module):
         self.n_neighbor = args.neighbor_sample_size
         self.kg = kg
         self.device = device
-        self.aggregator = Aggregator(self.batch_size, self.dim, args.aggregator)
+        self.aggregator = Aggregator(self.batch_size, self.dim, args.aggregator, args.mixer)
         
         self._gen_adj()
-            
-        self.usr = torch.nn.Embedding(num_user, args.dim)
+
+        self.usr = torch.nn.Embedding(num_user, args.dim)  # Generate num_user embeddings in args.dim dimension
         self.ent = torch.nn.Embedding(num_ent, args.dim)
         self.rel = torch.nn.Embedding(num_rel, args.dim)
         
     def _gen_adj(self):
         '''
-        Generate adjacency matrix for entities and relations
-        Only cares about fixed number of samples
+        Generate adjacency entities and their corresponding relations.
+        Specifically, for a given entity, this can produce a fixed number of its neighboring entities and connected relations.
+        Only cares about fixed number of samples, self.n_neighbor.
         '''
-        self.adj_ent = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
-        self.adj_rel = torch.empty(self.num_ent, self.n_neighbor, dtype=torch.long)
+
+        # torch.empty can play the same role as torch.zeros but sometimes it may cause IndexError
+        # Suggestion: Do not change it.
+        self.adj_ent = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
+        self.adj_rel = torch.zeros(self.num_ent, self.n_neighbor, dtype=torch.long)
         
         for e in self.kg:
+
+            # These two conditions assure a fixed number (i.e. self.n_neighbor) of sampling
             if len(self.kg[e]) >= self.n_neighbor:
                 neighbors = random.sample(self.kg[e], self.n_neighbor)
             else:
@@ -52,11 +58,12 @@ class KGCN(torch.nn.Module):
         batch_size = u.size(0)
         if batch_size != self.batch_size:
             self.batch_size = batch_size
-        # change to [batch_size, 1]
-        u = u.view((-1, 1))
+        
+        # [batch_size] -> [batch_size, 1]
+        u = u.view((-1, 1))  # the size -1 is inferred from other dimensions
         v = v.view((-1, 1))
         
-        # [batch_size, dim]
+        # [batch_size, 1, dim] -> [batch_size, dim]
         user_embeddings = self.usr(u).squeeze(dim = 1)
         
         entities, relations = self._get_neighbors(v)
@@ -76,8 +83,8 @@ class KGCN(torch.nn.Module):
         relations = []
         
         for h in range(self.n_iter):
-            neighbor_entities = torch.LongTensor(self.adj_ent[entities[h]]).view((self.batch_size, -1)).to(self.device)
-            neighbor_relations = torch.LongTensor(self.adj_rel[entities[h]]).view((self.batch_size, -1)).to(self.device)
+            neighbor_entities = torch.LongTensor(self.adj_ent[entities[h].cpu()]).view((self.batch_size, -1)).to(self.device)
+            neighbor_relations = torch.LongTensor(self.adj_rel[entities[h].cpu()]).view((self.batch_size, -1)).to(self.device)
             entities.append(neighbor_entities)
             relations.append(neighbor_relations)
             
